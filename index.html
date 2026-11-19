@@ -1,0 +1,386 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Ember & Thyme</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@500;700&display=swap">
+<style>
+/* Layout: sticky top bar, table floor-plan strip, filter row, menu grid; cart is a slide-over drawer; tracker sits above the menu after ordering. */
+:root {
+  --bg: #f4f5f7;
+  --surface: #ffffff;
+  --surface-2: #eceef2;
+  --line: #d6dae2;
+  --fg: #171c28;
+  --muted: #5a6376;
+  --accent: #b45309;
+  --accent-fg: #ffffff;
+  --accent-soft: #fdecd3;
+  --good: #15803d;
+  --good-soft: #dcfce7;
+  --font-display: "Space Grotesk", system-ui, sans-serif;
+  --font-body: "Inter", system-ui, sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0e121b; --surface: #161b27; --surface-2: #1e2534; --line: #2b3347;
+    --fg: #e9ecf3; --muted: #9aa3b8; --accent: #f59e0b; --accent-fg: #1a1203;
+    --accent-soft: #3a2a0c; --good: #4ade80; --good-soft: #12301f;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0e121b; --surface: #161b27; --surface-2: #1e2534; --line: #2b3347;
+  --fg: #e9ecf3; --muted: #9aa3b8; --accent: #f59e0b; --accent-fg: #1a1203;
+  --accent-soft: #3a2a0c; --good: #4ade80; --good-soft: #12301f;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--fg); font-family: var(--font-body); font-size: 15px; line-height: 1.5;
+  padding-block: 0 48px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+h1, h2, h3 { font-family: var(--font-display); text-wrap: balance; margin: 0; }
+button, input, select, textarea { font: inherit; color: inherit; }
+button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.wrap { max-width: 1040px; margin: 0 auto; display: flex; flex-direction: column; gap: 20px; }
+
+.topbar {
+  position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: var(--bg);
+  border-bottom: 1px solid var(--line); padding-block: 12px; margin-bottom: 20px;
+}
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--bg); }
+.topbar-in { max-width: 1040px; margin: 0 auto; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.brand { display: flex; align-items: center; gap: 10px; margin-right: auto; min-width: 0; }
+.logo { width: 38px; height: 38px; border-radius: 8px; background: var(--accent); color: var(--accent-fg); display: grid; place-items: center; font: 700 14px var(--font-display); letter-spacing: .02em; }
+.brand h1 { font-size: 19px; line-height: 1.1; }
+.brand small { color: var(--muted); font-size: 12px; }
+.pill { border: 1px solid var(--line); background: var(--surface); border-radius: 999px; padding: 6px 12px; font-size: 13px; display: inline-flex; align-items: center; gap: 6px; }
+.pill b { color: var(--good); font-weight: 600; }
+.btn { border: 0; background: var(--accent); color: var(--accent-fg); border-radius: 8px; padding: 9px 14px; font-weight: 600; cursor: pointer; }
+.btn:disabled { opacity: .45; cursor: not-allowed; }
+.btn.ghost { background: transparent; color: var(--fg); border: 1px solid var(--line); }
+
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 16px; }
+.panel h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); margin-bottom: 10px; font-weight: 700; }
+.tables { display: grid; grid-template-columns: repeat(auto-fill, minmax(64px, 1fr)); gap: 8px; }
+.tbl { border: 1px solid var(--line); background: var(--surface-2); border-radius: 8px; padding: 8px 0; cursor: pointer; font-variant-numeric: tabular-nums; font-weight: 500; }
+.tbl[aria-pressed="true"] { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); font-weight: 700; }
+.hint { color: var(--muted); font-size: 12.5px; margin: 10px 0 0; }
+code { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: .92em; background: var(--surface-2); padding: 1px 5px; border-radius: 4px; }
+
+.filters { display: flex; flex-direction: column; gap: 12px; }
+.row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.row > label { font-size: 12px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); font-weight: 600; width: 76px; }
+.chip { border: 1px solid var(--line); background: var(--surface); border-radius: 999px; padding: 5px 13px; font-size: 13.5px; cursor: pointer; }
+.chip[aria-pressed="true"] { background: var(--accent-soft); border-color: var(--accent); color: var(--fg); font-weight: 600; }
+.search { flex: 1 1 220px; min-width: 0; border: 1px solid var(--line); background: var(--surface); border-radius: 8px; padding: 8px 12px; }
+
+.count { color: var(--muted); font-size: 13px; }
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 14px; }
+.dish { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 14px; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.dish-head { display: flex; justify-content: space-between; gap: 10px; align-items: baseline; }
+.dish h3 { font-size: 16.5px; }
+.price { font: 700 16px var(--font-display); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.dish p { margin: 0; color: var(--muted); font-size: 13.5px; flex: 1; }
+.tags { display: flex; gap: 6px; flex-wrap: wrap; }
+.tag { font-size: 11px; font-weight: 600; letter-spacing: .05em; padding: 2px 8px; border-radius: 999px; background: var(--good-soft); color: var(--good); }
+.tag.nv { background: var(--accent-soft); color: var(--accent); }
+.tag.gf { background: var(--surface-2); color: var(--muted); }
+.empty { text-align: center; color: var(--muted); padding: 40px 12px; border: 1px dashed var(--line); border-radius: 10px; }
+
+.tracker h2 { color: var(--accent); }
+.steps { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+.step { border: 1px solid var(--line); border-radius: 8px; padding: 10px; background: var(--surface-2); display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.step.done { border-color: var(--good); background: var(--good-soft); }
+.step.now { border-color: var(--accent); background: var(--accent-soft); }
+.dot { font: 700 13px var(--font-display); color: var(--muted); }
+.step.done .dot { color: var(--good); }
+.step.now .dot { color: var(--accent); }
+.step strong { font-size: 13.5px; }
+.step small { color: var(--muted); font-size: 12px; }
+.bar { height: 6px; border-radius: 99px; background: var(--surface-2); margin-top: 12px; overflow: hidden; }
+.bar > i { display: block; height: 100%; background: var(--accent); transition: width .5s ease; }
+@media (max-width: 560px) { .steps { grid-template-columns: repeat(2, minmax(0, 1fr)); } .row > label { width: 100%; } }
+
+.scrim { position: fixed; inset: 0; background: rgba(8, 10, 16, .55); z-index: 20; }
+.drawer {
+  position: fixed; top: 0; right: 0; bottom: 0; width: min(420px, 100%); z-index: 21; background: var(--surface);
+  border-left: 1px solid var(--line); display: flex; flex-direction: column;
+  padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); padding-right: env(safe-area-inset-right, 0px);
+  transform: translateX(100%); transition: transform .25s ease; visibility: hidden;
+}
+.drawer.open { transform: none; visibility: visible; }
+.d-head { display: flex; justify-content: space-between; align-items: center; padding: 16px; border-bottom: 1px solid var(--line); }
+.d-head h2 { font-size: 18px; }
+.d-body { flex: 1; overflow-y: auto; padding: 8px 16px; }
+.line { padding: 12px 0; border-bottom: 1px solid var(--line); display: flex; flex-direction: column; gap: 8px; }
+.line-top { display: flex; justify-content: space-between; gap: 10px; }
+.qty { display: inline-flex; align-items: center; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+.qty button { border: 0; background: var(--surface-2); width: 30px; height: 30px; cursor: pointer; font-weight: 700; }
+.qty span { min-width: 30px; text-align: center; font-variant-numeric: tabular-nums; }
+.note { width: 100%; border: 1px solid var(--line); background: var(--bg); border-radius: 6px; padding: 6px 10px; font-size: 13px; }
+.d-foot { padding: 16px; border-top: 1px solid var(--line); display: flex; flex-direction: column; gap: 6px; }
+.sum { display: flex; justify-content: space-between; font-variant-numeric: tabular-nums; color: var(--muted); }
+.sum.total { color: var(--fg); font: 700 18px var(--font-display); padding-top: 6px; border-top: 1px solid var(--line); margin-top: 4px; }
+.sum .gst { color: var(--accent); }
+footer { color: var(--muted); font-size: 12.5px; text-align: center; padding-top: 8px; }
+@media (prefers-reduced-motion: reduce) { .drawer, .bar > i { transition: none; } }
+</style>
+
+<div id="root"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/htm@3.1.1/dist/htm.umd.js"></script>
+<script>
+const { useState, useEffect, useMemo } = React;
+const html = htm.bind(React.createElement);
+
+const CATEGORIES = ['Starters', 'Artisan Pasta', 'Wood-Fired Grill', 'Desserts', 'Drinks'];
+const DIETS = ['VEG', 'NON-VEG', 'VEGAN', 'GF'];
+const MENU_ITEMS = [
+  { id: 1, name: 'Smoked Burrata & Heirloom Tart', category: 'Starters', price: 680, diet: 'VEG', gf: false, description: 'Charred sourdough crisp, Pugliese burrata, roasted heirloom cherry tomatoes and basil oil.' },
+  { id: 2, name: 'Crispy Calamari Fritti', category: 'Starters', price: 620, diet: 'NON-VEG', gf: false, description: 'Lightly dusted squid, lemon zest, fried capers and saffron aioli.' },
+  { id: 3, name: 'Charred Corn & Thyme Soup', category: 'Starters', price: 340, diet: 'VEG', gf: true, description: 'Fire-roasted sweet corn blended with lemon thyme and a swirl of cream.' },
+  { id: 4, name: 'Truffle Burrata Ravioli', category: 'Artisan Pasta', price: 740, diet: 'VEG', gf: false, description: 'Handmade eggless ravioli stuffed with smoked burrata, black truffle emulsion and sage.' },
+  { id: 5, name: 'Pappardelle al Ragù', category: 'Artisan Pasta', price: 790, diet: 'NON-VEG', gf: false, description: 'Wide ribbons with slow-braised lamb ragù, red wine and rosemary.' },
+  { id: 6, name: 'Penne Arrabbiata', category: 'Artisan Pasta', price: 520, diet: 'VEG', gf: false, description: 'Penne in a spicy San Marzano tomato sauce with garlic and parsley.' },
+  { id: 7, name: 'Aglio e Olio', category: 'Artisan Pasta', price: 480, diet: 'VEGAN', gf: false, description: 'Spaghetti tossed in garlic, chilli flakes, cold-pressed olive oil and fresh parsley.' },
+  { id: 8, name: 'Oak-Grilled Truffle Ribeye', category: 'Wood-Fired Grill', price: 1450, diet: 'NON-VEG', gf: true, description: 'Dry-aged ribeye seared over oak, truffle butter and charred shallots.' },
+  { id: 9, name: 'Rosemary Chicken Spiedino', category: 'Wood-Fired Grill', price: 820, diet: 'NON-VEG', gf: true, description: 'Skewered thigh meat marinated in rosemary, garlic and lemon, finished on the wood fire.' },
+  { id: 10, name: 'Grilled Halloumi & Vegetables', category: 'Wood-Fired Grill', price: 640, diet: 'VEG', gf: true, description: 'Halloumi, zucchini, peppers and aubergine with a mint and thyme dressing.' },
+  { id: 11, name: 'Fire-Roasted Cauliflower Steak', category: 'Wood-Fired Grill', price: 560, diet: 'VEGAN', gf: true, description: 'Thick cauliflower slab with romesco sauce and toasted almonds.' },
+  { id: 12, name: 'Classic Tiramisu', category: 'Desserts', price: 380, diet: 'VEG', gf: false, description: 'Espresso-soaked savoiardi, mascarpone cream and dark cocoa.' },
+  { id: 13, name: 'Olive Oil & Orange Cake', category: 'Desserts', price: 360, diet: 'VEG', gf: false, description: 'Moist citrus cake with whipped ricotta and candied peel.' },
+  { id: 14, name: 'Poached Pear & Almond', category: 'Desserts', price: 340, diet: 'VEGAN', gf: true, description: 'Pear poached in spiced syrup with almond crumble and coconut cream.' },
+  { id: 15, name: 'Thyme & Lemon Cooler', category: 'Drinks', price: 180, diet: 'VEGAN', gf: true, description: 'Fresh lemonade infused with thyme and a hint of honey-free agave.' },
+  { id: 16, name: 'Slow-Drip Cold Brew', category: 'Drinks', price: 210, diet: 'VEGAN', gf: true, description: 'Steeped for 18 hours, served over a single large ice cube.' },
+];
+
+const STAGES = [
+  { key: 'RECEIVED', label: '1. Order Received', desc: 'Ticket logged at Kitchen POS' },
+  { key: 'PREPARING', label: '2. Wood-Fired Prep', desc: 'Chefs searing & plating' },
+  { key: 'READY', label: '3. Plating & Ready', desc: 'Garnished at the pass' },
+  { key: 'SERVED', label: '4. Served at Table', desc: 'Delivered to your table' },
+];
+
+const inr = (n) => '₹' + n.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const pad = (n) => String(n).padStart(2, '0');
+let uid = 1;
+
+function QRTableModal({ tableNumber, onSelect }) {
+  return html`
+    <section class="panel" aria-label="Table selection">
+      <h2>Your table</h2>
+      <div class="tables">
+        ${Array.from({ length: 12 }, (_, i) => i + 1).map((n) => html`
+          <button key=${n} class="tbl" aria-pressed=${n === tableNumber} onClick=${() => onSelect(n)}>#${pad(n)}</button>
+        `)}
+      </div>
+      <p class="hint">Scanning the QR code on a table tent opens this page with <code>?table=N</code> and picks the table for you. Tap a table here to switch.</p>
+    </section>`;
+}
+
+function MenuFilterBar({ category, diet, query, setCategory, setDiet, setQuery }) {
+  return html`
+    <section class="panel filters" aria-label="Menu filters">
+      <div class="row">
+        <label>Course</label>
+        <button class="chip" aria-pressed=${category === 'ALL'} onClick=${() => setCategory('ALL')}>All</button>
+        ${CATEGORIES.map((c) => html`<button key=${c} class="chip" aria-pressed=${category === c} onClick=${() => setCategory(c)}>${c}</button>`)}
+      </div>
+      <div class="row">
+        <label>Dietary</label>
+        <button class="chip" aria-pressed=${diet === 'ALL'} onClick=${() => setDiet('ALL')}>All</button>
+        ${DIETS.map((d) => html`<button key=${d} class="chip" aria-pressed=${diet === d} onClick=${() => setDiet(d)}>${d === 'GF' ? 'Gluten-free' : d}</button>`)}
+      </div>
+      <div class="row">
+        <label for="search">Search</label>
+        <input id="search" class="search" type="search" placeholder="Dish name or ingredient, e.g. burrata" value=${query} onInput=${(e) => setQuery(e.target.value)} />
+      </div>
+    </section>`;
+}
+
+function DishCard({ dish, qtyInCart, onAdd, tableNumber }) {
+  return html`
+    <article class="dish">
+      <div class="dish-head">
+        <h3>${dish.name}</h3>
+        <span class="price">₹${dish.price}</span>
+      </div>
+      <div class="tags">
+        <span class=${'tag ' + (dish.diet === 'NON-VEG' ? 'nv' : '')}>${dish.diet}</span>
+        ${dish.gf && html`<span class="tag gf">GF</span>`}
+        <span class="tag gf">${dish.category}</span>
+      </div>
+      <p>${dish.description}</p>
+      <button class="btn" onClick=${() => onAdd(dish)}>
+        ${qtyInCart > 0 ? `Added to Table #${pad(tableNumber)} (Qty ${qtyInCart}) · add one more` : `+ Add to Table #${pad(tableNumber)}`}
+      </button>
+    </article>`;
+}
+
+function CartDrawer({ isOpen, items, totals, tableNumber, onClose, onChangeQty, onNote, onCommitNote, onPlaceOrder }) {
+  return html`
+    <${React.Fragment}>
+      ${isOpen && html`<div class="scrim" onClick=${onClose}></div>`}
+      <aside class=${'drawer ' + (isOpen ? 'open' : '')} aria-label="Cart" aria-hidden=${!isOpen}>
+        <div class="d-head">
+          <h2>Cart · Table #${pad(tableNumber)}</h2>
+          <button class="btn ghost" onClick=${onClose}>Close</button>
+        </div>
+        <div class="d-body">
+          ${items.length === 0 && html`<div class="empty">Your cart is empty. Add a dish from the menu.</div>`}
+          ${items.map((it) => html`
+            <div class="line" key=${it.uid}>
+              <div class="line-top">
+                <strong>${it.dish.name}</strong>
+                <span class="price">${inr(it.dish.price * it.qty)}</span>
+              </div>
+              <div class="line-top">
+                <div class="qty">
+                  <button aria-label="Decrease quantity" onClick=${() => onChangeQty(it.uid, -1)}>−</button>
+                  <span>${it.qty}</span>
+                  <button aria-label="Increase quantity" onClick=${() => onChangeQty(it.uid, 1)}>+</button>
+                </div>
+                <span class="count">₹${it.dish.price} each</span>
+              </div>
+              <input class="note" placeholder="Chef note, e.g. medium-rare" value=${it.note}
+                onInput=${(e) => onNote(it.uid, e.target.value)} onBlur=${onCommitNote} />
+            </div>`)}
+        </div>
+        <div class="d-foot">
+          <div class="sum"><span>Item subtotal</span><span>${inr(totals.subtotal)}</span></div>
+          <div class="sum"><span class="gst">Statutory GST (5%)</span><span class="gst">+ ${inr(totals.gstAmount)}</span></div>
+          <div class="sum total"><span>Grand total</span><span>${inr(totals.grandTotal)}</span></div>
+          <button class="btn" disabled=${items.length === 0} onClick=${onPlaceOrder}>Dispatch order to kitchen</button>
+        </div>
+      </aside>
+    <//>`;
+}
+
+function LiveOrderTracker({ tableNumber, status, orderId, itemCount }) {
+  const activeIdx = STAGES.findIndex((s) => s.key === status);
+  return html`
+    <section class="panel tracker" aria-live="polite">
+      <h2>Live order · Table #${pad(tableNumber)} · ${orderId} · ${itemCount} items</h2>
+      <div class="steps">
+        ${STAGES.map((s, i) => html`
+          <div key=${s.key} class=${'step ' + (i < activeIdx || status === 'SERVED' ? 'done' : i === activeIdx ? 'now' : '')}>
+            <span class="dot">${i < activeIdx || status === 'SERVED' ? '✓ Done' : i === activeIdx ? '● In progress' : 'Waiting'}</span>
+            <strong>${s.label}</strong>
+            <small>${s.desc}</small>
+          </div>`)}
+      </div>
+      <div class="bar"><i style=${{ width: ((activeIdx + 1) / STAGES.length) * 100 + '%' }}></i></div>
+    </section>`;
+}
+
+function App() {
+  const [tableNumber, setTableNumber] = useState(1);
+  const [category, setCategory] = useState('ALL');
+  const [diet, setDiet] = useState('ALL');
+  const [query, setQuery] = useState('');
+  const [cart, setCart] = useState([]);
+  const [cartOpen, setCartOpen] = useState(false);
+  const [order, setOrder] = useState(null);
+  const [stage, setStage] = useState(null);
+
+  // Bind QR table (?table=1..12) on mount
+  useEffect(() => {
+    try {
+      const n = Number(new URLSearchParams(window.location.search).get('table'));
+      if (Number.isInteger(n) && n >= 1 && n <= 12) setTableNumber(n);
+    } catch (e) {}
+  }, []);
+
+  // Advance the kitchen pipeline after an order is placed
+  useEffect(() => {
+    if (!order) return;
+    const id = setInterval(() => {
+      setStage((s) => {
+        const next = Math.min(STAGES.findIndex((x) => x.key === s) + 1, STAGES.length - 1);
+        return STAGES[next].key;
+      });
+    }, 4000);
+    return () => clearInterval(id);
+  }, [order && order.id]);
+
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    return MENU_ITEMS.filter((d) => {
+      const okCat = category === 'ALL' || d.category === category;
+      const okDiet = diet === 'ALL' || (diet === 'GF' ? d.gf : d.diet === diet);
+      const okQ = !q || d.name.toLowerCase().includes(q) || d.description.toLowerCase().includes(q);
+      return okCat && okDiet && okQ;
+    });
+  }, [category, diet, query]);
+
+  const totals = useMemo(() => {
+    const subtotal = cart.reduce((s, i) => s + i.dish.price * i.qty, 0);
+    const gstAmount = Math.round(subtotal * 0.05 * 100) / 100;
+    const grandTotal = Math.round((subtotal + gstAmount) * 100) / 100;
+    return { subtotal, gstAmount, grandTotal };
+  }, [cart]);
+
+  const qtyFor = (dishId) => cart.filter((i) => i.dish.id === dishId).reduce((s, i) => s + i.qty, 0);
+  const cartCount = cart.reduce((s, i) => s + i.qty, 0);
+
+  const addToCart = (dish) => setCart((prev) => {
+    const hit = prev.find((i) => i.dish.id === dish.id && i.note === '');
+    if (hit) return prev.map((i) => (i === hit ? { ...i, qty: i.qty + 1 } : i));
+    return [...prev, { uid: uid++, dish, qty: 1, note: '' }];
+  });
+  const changeQty = (id, delta) => setCart((prev) =>
+    prev.map((i) => (i.uid === id ? { ...i, qty: i.qty + delta } : i)).filter((i) => i.qty > 0));
+  const setNote = (id, note) => setCart((prev) => prev.map((i) => (i.uid === id ? { ...i, note } : i)));
+  // Merge lines that share dishId + note
+  const commitNote = () => setCart((prev) => {
+    const out = [];
+    prev.forEach((i) => {
+      const same = out.find((o) => o.dish.id === i.dish.id && o.note.trim() === i.note.trim());
+      if (same) same.qty += i.qty; else out.push({ ...i });
+    });
+    return out;
+  });
+
+  const placeOrder = () => {
+    setOrder({ id: 'ORD-2026-' + String(Math.floor(Math.random() * 900) + 100), table: tableNumber, count: cartCount });
+    setStage('RECEIVED');
+    setCart([]);
+    setCartOpen(false);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  return html`
+    <${React.Fragment}>
+      <header class="topbar">
+        <div class="topbar-in">
+          <div class="brand">
+            <div class="logo">E&T</div>
+            <div><h1>Ember & Thyme</h1><small>Table-side digital ordering</small></div>
+          </div>
+          <span class="pill">QR session <b>Table #${pad(tableNumber)}</b></span>
+          <button class="btn" onClick=${() => setCartOpen(true)}>Cart (${cartCount}) · ${inr(totals.grandTotal)}</button>
+        </div>
+      </header>
+      <main class="wrap">
+        ${order && html`<${LiveOrderTracker} tableNumber=${order.table} status=${stage} orderId=${order.id} itemCount=${order.count} />`}
+        <${QRTableModal} tableNumber=${tableNumber} onSelect=${setTableNumber} />
+        <${MenuFilterBar} category=${category} diet=${diet} query=${query} setCategory=${setCategory} setDiet=${setDiet} setQuery=${setQuery} />
+        <div class="count">${filtered.length} of ${MENU_ITEMS.length} dishes</div>
+        ${filtered.length === 0
+          ? html`<div class="empty">No dishes match these filters. Clear a filter or change the search.</div>`
+          : html`<div class="grid">${filtered.map((d) => html`<${DishCard} key=${d.id} dish=${d} qtyInCart=${qtyFor(d.id)} onAdd=${addToCart} tableNumber=${tableNumber} />`)}</div>`}
+        <footer>Task 2 · Full Stack Web Development · SRM IST Trichy Campus</footer>
+      </main>
+      <${CartDrawer} isOpen=${cartOpen} items=${cart} totals=${totals} tableNumber=${tableNumber}
+        onClose=${() => setCartOpen(false)} onChangeQty=${changeQty} onNote=${setNote} onCommitNote=${commitNote} onPlaceOrder=${placeOrder} />
+    <//>`;
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(html`<${App} />`);
+</script>
+
+</body></html>
